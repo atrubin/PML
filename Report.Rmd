@@ -1,0 +1,86 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Alexander Trubin"
+date: "22 Feb 2015"
+output: html_document
+---
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+The goal of this project is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants and classify it to one of the 5 activities. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+
+Load all needed R libraries.
+
+```{r}
+library(caret)
+library(randomForest)
+```
+
+Download training and testing data to the "~/Documents/R/coursera/MachineLearning/" folder.
+
+Set working directory and load data and header from csv files. 
+
+```{r}
+setwd("~/Documents/R/coursera/MachineLearning/")
+TrainingData <- read.csv("pml-training.csv", header = TRUE, na.strings=c("NA","#DIV/0!",""))
+TestingData <- read.csv("pml-testing.csv", header = TRUE, na.strings=c("NA","#DIV/0!",""))
+```
+
+There are columns in data.frame which contain NA values. Also there are first 7 columns with no relevant information for classification task. We should remove them.
+
+```{r}
+keeps <- c()
+
+for(ColName in names(TrainingData))
+{
+    if(sum(is.na(TrainingData[[ColName]])) == 0)
+        keeps <- c(keeps, ColName)
+}
+
+keeps <- keeps[8:length(keeps)]
+TrainingData <- TrainingData[keeps]
+```
+
+Set seed value so that results could be reproduced independently.
+
+Divide our dataset in 10 chunks. 
+
+Use the first one as a training set.
+Use the second one as a testing set.
+
+```{r}
+set.seed(150984)
+
+Fields <- createFolds(y=TrainingData$classe, k = 10, list = TRUE, returnTrain = FALSE)
+
+Training <- TrainingData[Fields[[1]],]
+Testing <- TrainingData[Fields[[2]],]
+
+Cntrl <- trainControl(method = "cv", number = 4)
+
+ModFit <- train(Training$classe ~ ., method="rf", 
+                preProcess=c("center", "scale"), 
+                trControl=Cntrl, 
+                data=Training)
+
+print(ModFit, digits=3)
+```
+
+Use the generated model for making prediction.
+
+```{r}
+Prediction <- predict(ModFit, newdata=Testing)
+
+CM <- confusionMatrix(Prediction, Testing$classe)
+print(CM, digits=3)
+```
+
+
+Out of sample error is:
+```{r}
+
+1-CM$overall[[1]]
+
+```
+
